@@ -5,6 +5,7 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 ## [Unreleased]
 
 ### Added
+- `install.ps1 -Agent goose|both`: installs goose Desktop (winget `AgenticAIFoundation.gooseDesktop`), links the skills into `~\.agents\skills`, copies the global instructions to goose's `.goosehints` (a different existing file is kept as `.bak`), and with `-RegisterMcp` adds the masked-reader extension to goose's `config.yaml` (backup first; needs goose started once). Run on Windows 11 over SSH; the live model call was not tested.
 - `masked_reader.py`: MCP server that returns only masked text (5 tools, no restore); `install.ps1 -RegisterMcp`; tests; verified in Claude Code, goose and on Windows 11.
 - `powerbi-starter` skill and `make_pbip.py`: Power BI project (TMDL + PBIR) from a clean CSV; files checked against Microsoft's JSON schemas; opened in Power BI Desktop 2.160 on Windows 11 (needs Refresh for data).
 - Marketplace with plugins `core`, `office`, `data`, `privacy` (11 skills moved from `iap-office-skills`, 5 new: `prompt-brief`, `step-check`, `markdown-first`, `mask-sensitive`, `scan-before-sharing`).

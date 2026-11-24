@@ -13,7 +13,7 @@ Generic skills and hints for office work with Claude. Course-independent: no cli
 
 ## Install (Windows 11)
 
-`powershell -ExecutionPolicy Bypass -File install\install.ps1` installs Claude Desktop, uv and Git (winget), gets this repo, links the skills for Claude Code, and creates `%USERPROFILE%\ai\{private,work,tools,hints}`. Add `-WithCli` for Claude Code. It is idempotent. In Claude Desktop: Customize, Plugins, Add marketplace, `mariolpantunes/ai-skills`.
+`powershell -ExecutionPolicy Bypass -File install\install.ps1` installs Claude Desktop, uv and Git (winget), gets this repo, links the skills for Claude Code, and creates `%USERPROFILE%\ai\{private,work,tools,hints}`. Add `-WithCli` for Claude Code. It is idempotent. In Claude Desktop: Customize, Plugins, Add marketplace, `mariolpantunes/ai-skills`. For goose use `-Agent goose` (or `both`): it installs goose Desktop, links the skills into `~\.agents\skills`, and sets the global hints in goose's config folder; goose has no folder fence, so keep `private` out of its working folder.
 
 ## Privacy design
 
