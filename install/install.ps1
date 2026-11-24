@@ -59,6 +59,7 @@ if (Test-Path -LiteralPath $Source -PathType Container) {
     git -C $RepoDir pull --ff-only
     if ($LASTEXITCODE -ne 0) { Todo 'git pull failed; the copy that is there is kept' } else { Done "Updated $RepoDir" }
 } elseif ($git) {
+    if (Test-Path $RepoDir) { Move-Item $RepoDir ("$RepoDir.bak-" + (Get-Date -Format 'yyyyMMdd-HHmmss')) }  # a copy that is not a git clone
     git clone $Source $RepoDir
     if ($LASTEXITCODE -ne 0) { throw 'git clone failed' }
     Done "Cloned to $RepoDir"
