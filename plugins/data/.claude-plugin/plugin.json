@@ -1,0 +1,7 @@
+{
+  "name": "data",
+  "description": "Data tasks: consolidate exports into one clean table, check totals, prepare tables for Excel and Power BI.",
+  "version": "0.1.0",
+  "author": { "name": "Mario Antunes" },
+  "license": "MIT"
+}

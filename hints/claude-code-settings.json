@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(~/ai/private/**)",
+      "Edit(~/ai/private/**)",
+      "Read(**/map.json)",
+      "Read(**/terms.txt)"
+    ]
+  }
+}

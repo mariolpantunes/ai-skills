@@ -1,0 +1,7 @@
+{
+  "name": "core",
+  "description": "Working habits for any task with Claude: briefs, step checks, Markdown as the working format, final checks, writing skills.",
+  "version": "0.1.0",
+  "author": { "name": "Mario Antunes" },
+  "license": "MIT"
+}

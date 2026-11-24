@@ -1,0 +1,11 @@
+{
+  "name": "ai-skills",
+  "description": "Generic, course-independent skills and hints for office work with Claude.",
+  "owner": { "name": "Mario Antunes" },
+  "plugins": [
+    { "name": "core",    "source": "./plugins/core",    "description": "Briefs, step checks, Markdown-first, final checks, write-a-skill." },
+    { "name": "office",  "source": "./plugins/office",  "description": "Mail triage and replies, summaries with sources, contradictions, field counts, scoring, writing." },
+    { "name": "data",    "source": "./plugins/data",    "description": "Consolidate exports, check totals, prepare tables for Excel and Power BI." },
+    { "name": "privacy", "source": "./plugins/privacy", "description": "Mask sensitive data locally; the agent works on the masked copy only." }
+  ]
+}

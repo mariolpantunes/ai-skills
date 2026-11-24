@@ -1,0 +1,6 @@
+Assunto: Fatura 2026/114 da Acme Lda
+Olá Ana Ferreira,
+Pagamento para PT50 0002 0123 1234 5678 9015 4 até sexta. NIF 501964843, contacto +351 912 345 678 ou ana.ferreira@acme.example.
+Cartão 4539 1488 0343 6467. Morada: Rua das Flores 12, 3800-123 Aveiro. Viatura 12-AB-34.
+password: hunter2xyz
+O Sr. Ferreira (Acme Lda) pediu desconto. Total 1.234,50 EUR, ref 2026-07-14.

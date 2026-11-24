@@ -1,0 +1,7 @@
+{
+  "name": "privacy",
+  "description": "Keep sensitive data away from the agent: mask locally, work on the masked copy, restore locally, scan folders.",
+  "version": "0.1.0",
+  "author": { "name": "Mario Antunes" },
+  "license": "MIT"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "office",
+  "description": "Office tasks: mail triage and replies, summaries with sources, contradictions, field counts, scoring, writing.",
+  "version": "0.1.0",
+  "author": { "name": "Mario Antunes" },
+  "license": "MIT"
+}
