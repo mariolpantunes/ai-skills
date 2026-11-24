@@ -12,6 +12,7 @@ param(
     [string]$RepoDir = (Join-Path $env:USERPROFILE 'ai-skills'),
     [string]$AiHome  = (Join-Path $env:USERPROFILE 'ai'),  # not Documents: OneDrive may sync it
     [switch]$WithCli,
+    [switch]$RegisterMcp,   # add the masked-reader MCP server to Claude Desktop (backs up its config first)
     [switch]$SkipApps
 )
 $ErrorActionPreference = 'Stop'
@@ -90,6 +91,7 @@ foreach ($d in 'private\in', 'private\restored', 'work\masked', 'tools', 'hints'
     New-Item -ItemType Directory -Force -Path (Join-Path $AiHome $d) | Out-Null
 }
 Copy-Item (Join-Path $RepoDir 'plugins\privacy\skills\mask-sensitive\scripts\sensitive.py') (Join-Path $AiHome 'tools') -Force
+Copy-Item (Join-Path $RepoDir 'plugins\privacy\mcp\masked_reader.py') (Join-Path $AiHome 'tools') -Force
 Copy-Item (Join-Path $RepoDir 'install\tools\*.cmd') (Join-Path $AiHome 'tools') -Force
 Copy-Item (Join-Path $RepoDir 'hints\*') (Join-Path $AiHome 'hints') -Force
 $terms = Join-Path $AiHome 'private\terms.txt'
@@ -97,6 +99,33 @@ if (-not (Test-Path $terms)) {
     "# One name per line (people, companies, products). Optional type: ORG: Acme Lda`r`n# Lines that start with # are ignored." | Set-Content -Path $terms -Encoding Ascii
 }
 Done 'tools, hints and terms.txt in place'
+
+# 4b. masked-reader MCP server for Claude Desktop (opt-in): the agent reads documents only through masked text
+if ($RegisterMcp) {
+    Step 'Registering the masked-reader MCP server in Claude Desktop'
+    $uv = (Get-Command uv -ErrorAction SilentlyContinue).Source
+    if (-not $uv) { Todo 'uv not found: cannot register the MCP server' } else {
+        $cfgDir = Join-Path $env:APPDATA 'Claude'
+        New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
+        $cfg = Join-Path $cfgDir 'claude_desktop_config.json'
+        $obj = [ordered]@{}
+        if (Test-Path $cfg) {
+            Copy-Item $cfg ("$cfg.bak-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+            $raw = [IO.File]::ReadAllText($cfg).TrimStart([char]0xFEFF)
+            if ($raw.Trim()) { $parsed = $raw | ConvertFrom-Json; foreach ($p in $parsed.PSObject.Properties) { $obj[$p.Name] = $p.Value } }
+        }
+        $servers = [ordered]@{}
+        if ($obj.Contains('mcpServers') -and $obj['mcpServers']) { foreach ($p in $obj['mcpServers'].PSObject.Properties) { $servers[$p.Name] = $p.Value } }
+        $servers['masked-reader'] = [ordered]@{
+            command = $uv
+            args    = @('run', '--script', (Join-Path $AiHome 'tools\masked_reader.py'))
+            env     = [ordered]@{ AI_HOME = $AiHome }
+        }
+        $obj['mcpServers'] = $servers
+        [IO.File]::WriteAllText($cfg, ($obj | ConvertTo-Json -Depth 10), (New-Object Text.UTF8Encoding($false)))
+        Done "masked-reader registered in $cfg (restart Claude Desktop)"
+    }
+}
 
 # 5. Check
 Step 'Check'
@@ -117,6 +146,7 @@ Next, by hand in Claude Desktop:
   3. Settings > Instructions: paste $AiHome\hints\global-instructions.md
   4. Connect only the folder $AiHome\work (never the folder private).
   5. Connectors > Microsoft 365 > Connect.
+  6. Optional: run install.ps1 -RegisterMcp, restart Claude Desktop: Claude then reads your documents only through the masked-reader tools.
 Put documents in $AiHome\private\in, double-click tools\mask.cmd, then work on work\masked.
 "@
 if ($todo.Count) { exit 1 }

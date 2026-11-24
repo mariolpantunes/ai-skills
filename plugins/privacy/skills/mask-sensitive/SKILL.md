@@ -7,7 +7,8 @@ description: Works on documents that were masked on the user's PC (tokens like <
 
 The user masks documents locally with `mask.cmd` (script `scripts/sensitive.py`). You only ever get the masked copy in the connected work folder. Tokens such as `<IBAN_1>` stand for the same real value everywhere, so tables, counts and cross-references still work.
 
-1. Open only files in the connected work folder. Never ask for, look for or open the private folder (`private`, `in`, `map.json`, `terms.txt`, `restored`).
+0. If the tools `list_documents`, `open_document`, `read_pages`, `read_section` and `search_document` (server `masked-reader`) are available, read documents only through them: they return masked text from the user's private folder. Never try to read that folder another way.
+1. Otherwise open only files in the connected work folder. Never ask for, look for or open the private folder (`private`, `in`, `map.json`, `terms.txt`, `restored`).
 2. If a file in the work folder holds what looks like a real e-mail, phone, IBAN, tax number, card number, password or a name, stop. Say which file and which kind, do not repeat the value, and ask the user to run `scan.cmd` and mask again.
 3. If the user pastes or attaches raw sensitive data in the chat, say it is already shared, and ask them to use the masked route from now on.
 4. Work on the tokens as if they were the data: keep each token exactly as written, never guess or "fill in" the real value, never write a token you were not given.

@@ -5,6 +5,7 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 ## [Unreleased]
 
 ### Added
+- `masked_reader.py`: MCP server that returns only masked text (5 tools, no restore); `install.ps1 -RegisterMcp`; tests; verified in Claude Code, goose and on Windows 11.
 - `powerbi-starter` skill and `make_pbip.py`: Power BI project (TMDL + PBIR) from a clean CSV; files checked against Microsoft's JSON schemas; opened in Power BI Desktop 2.160 on Windows 11 (needs Refresh for data).
 - Marketplace with plugins `core`, `office`, `data`, `privacy` (11 skills moved from `iap-office-skills`, 5 new: `prompt-brief`, `step-check`, `markdown-first`, `mask-sensitive`, `scan-before-sharing`).
 - `sensitive.py` (mask, restore, scan) with tests; `mask.cmd`, `restore.cmd`, `scan.cmd`.
