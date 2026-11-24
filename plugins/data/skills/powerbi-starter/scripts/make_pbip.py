@@ -7,7 +7,8 @@ and three measures, and a one-page report (PBIR) with a card and a bar chart.
 
   make_pbip.py orders_clean.csv --out ./powerbi --name Orders [--csv-path C:\\data\\orders_clean.csv]
 
-Open <out>\\<name>.pbip in Power BI Desktop (Windows). The CSV path is a model parameter (CsvPath).
+Open <out>\\<name>.pbip in Power BI Desktop (Windows), then click Refresh: a project has no data cache, so it opens empty.
+The CSV path is a model parameter (CsvPath).
 Needs a header row, one decimal point, ISO dates (2026-07-14).
 """
 from __future__ import annotations

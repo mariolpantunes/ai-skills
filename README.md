@@ -8,8 +8,8 @@ Generic skills and hints for office work with Claude. Course-independent: no cli
 |:--|:--|
 | `core` | `prompt-brief`, `step-check`, `markdown-first`, `office-checklist`, `write-a-skill` |
 | `office` | `triage-mailbox`, `reply-to-client`, `summarise-with-sources`, `find-contradictions`, `extract-and-count-fields`, `score-with-rubric`, `improve-writing` |
-| `data` | `consolidate-order-files`, `check-totals` |
-| `privacy` | `mask-sensitive`, `scan-before-sharing` (+ the local tool `sensitive.py`) |
+| `data` | `consolidate-order-files`, `check-totals`, `powerbi-starter` (PBIP generator; opens empty until Refresh) |
+| `privacy` | `mask-sensitive`, `scan-before-sharing` |
 
 ## Install (Windows 11)
 
