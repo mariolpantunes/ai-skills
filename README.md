@@ -27,7 +27,7 @@ Limits: no image or scan understanding (a scanned PDF is refused, not guessed); 
 
 ## Manage your own skills
 
-`write-a-skill` carries `scripts/skills.py` (standard library only): `list`, `new`, `edit`, `check` (refuses names, e-mails, paths, secrets), `merge`, `remove` (archive, never deletes), `restore`, `package` (ZIP for Claude Desktop), `install`.
+`write-a-skill` needs no program: it tells Claude how to write, check, merge and install a skill folder (`<name>/SKILL.md`). A skill can equally be written by hand in a text editor.
 
 ## Layout and tests
 
