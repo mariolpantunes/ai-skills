@@ -1,12 +1,20 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# requires-python = ">=3.10"
-# dependencies = ["mcp==2.3.0", "markitdown[docx,xlsx,pdf,pptx]==0.1.9"]
+# requires-python = ">=3.11,<3.15"
+# dependencies = [
+#   "mcp==2.3.0",
+#   "markitdown[docx,xlsx,pdf,pptx]==0.1.9",
+#   "pymupdf4llm==2.2",
+#   "pypandoc_binary==1.17",
+#   "spacy==3.8.18",
+#   "pt-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl",
+# ]
 # ///
 """masked-reader: an MCP server that reads documents on this PC and returns ONLY masked text.
 
-The agent can list, open, read by page, read a section and search. Every answer is masked with the same
-rules as sensitive.py (tokens such as <NIF_1>, names from terms.txt). There is no tool that returns
+The agent can list, open, read by page, read a section, search one document and search all documents (BM25). Every answer is masked with the same
+rules as sensitive.py (tokens such as <NIF_1>; names and organisations are found automatically, plus terms.txt).
+PDFs are normalised first (clean Markdown, no headers or footers). There is no tool that returns
 a real value: the token-to-value map stays in private/map.json and only the user restores it.
 
 Env: AI_HOME (default ~/ai); MASK_READER_DIR (originals, default $AI_HOME/private/in).
@@ -14,9 +22,11 @@ Run:  uv run masked_reader.py        (stdio; register it in Claude Desktop, Clau
 """
 from __future__ import annotations
 
+import math
 import os
 import re
 import sys
+import unicodedata
 from collections import Counter
 from pathlib import Path
 
@@ -46,17 +56,27 @@ def _vault() -> "S.Vault":
     return S.Vault(AI_HOME / "private" / "map.json")
 
 
+_files_cache: tuple[tuple, dict[str, Path]] | None = None
+
+
 def _files() -> dict[str, Path]:
-    """masked display name -> original path (the original name is never returned)."""
-    out: dict[str, Path] = {}
+    """masked display name -> original path (the original name is never returned). Cached until the folder or terms.txt change."""
+    global _files_cache
     if not SRC.is_dir():
-        return out
+        return {}
+    paths = sorted(x for x in SRC.rglob("*") if x.is_file() and x.suffix.lower() in SUPPORTED)
+    terms_file = AI_HOME / "private" / "terms.txt"
+    sig = tuple((str(p), p.stat().st_mtime) for p in paths) + ((terms_file.stat().st_mtime,) if terms_file.is_file() else ())
+    if _files_cache and _files_cache[0] == sig:
+        return _files_cache[1]
+    out: dict[str, Path] = {}
     v, terms = _vault(), _terms()
-    for p in sorted(x for x in SRC.rglob("*") if x.is_file() and x.suffix.lower() in SUPPORTED):
+    for p in paths:
         stem, _ = S.mask_text(p.stem, v, terms)
         name = S.TOKEN.sub(r"\1-\2", stem) + p.suffix.lower()
         out[name] = p
     v.save()
+    _files_cache = (sig, out)
     return out
 
 
@@ -88,6 +108,39 @@ def _pages(text: str) -> list[str]:
     if cur.strip():
         pages.append(cur)
     return pages or [text]
+
+
+def _words(text: str) -> list[str]:
+    t = unicodedata.normalize("NFD", text.lower())
+    return re.findall(r"[a-z0-9_<>]{2,}", "".join(c for c in t if unicodedata.category(c) != "Mn"))
+
+
+@app.tool()
+def search_all(query: str, top: int = 5) -> str:
+    """Find the pages that best match a question across ALL documents (BM25 ranking, masked text). Returns document, page and a short snippet. For 'how many' or 'all of' questions read the documents instead: ranking returns only the best few pages."""
+    docs: list[tuple[str, int, str, Counter]] = []
+    for name in _files():
+        try:
+            for i, pg in enumerate(_pages(_masked(name)[0]), 1):
+                docs.append((name, i, pg, Counter(_words(pg))))
+        except ValueError:
+            continue
+    q = _words(query)
+    if not docs or not q:
+        return "no documents or an empty query"
+    avg = sum(sum(c.values()) for *_, c in docs) / len(docs)
+    df = {w: sum(1 for *_, c in docs if w in c) for w in set(q)}
+    scored = []
+    for name, i, pg, c in docs:
+        n = sum(c.values())
+        sc = sum(math.log(1 + (len(docs) - df[w] + 0.5) / (df[w] + 0.5)) * c[w] * 2.2 / (c[w] + 1.2 * (0.25 + 0.75 * n / avg)) for w in set(q) if w in c)
+        if sc > 0:
+            scored.append((sc, name, i, pg))
+    scored.sort(key=lambda t: -t[0])
+    out = [f"{len(scored)} page(s) match; best {min(top, len(scored))}:"]
+    for sc, name, i, pg in scored[: max(1, min(top, 10))]:
+        out.append(f"--- {name} p{i} (score {sc:.1f}) ---\n{pg.strip()[:600]}")
+    return "\n".join(out) if scored else "no page matches"
 
 
 @app.tool()

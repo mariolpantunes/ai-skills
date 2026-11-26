@@ -1,19 +1,28 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# requires-python = ">=3.10"
-# dependencies = ["markitdown[docx,xlsx,pdf,pptx]==0.1.9"]
+# requires-python = ">=3.11,<3.15"
+# dependencies = [
+#   "markitdown[docx,xlsx,pdf,pptx]==0.1.9",
+#   "pymupdf4llm==2.2",
+#   "pypandoc_binary==1.17",
+#   "spacy==3.8.18",
+#   "pt-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl",
+# ]
 # ///
 """Mask, restore and scan sensitive data on this PC, before an AI agent sees a document.
 
   sensitive.py mask    [SRC] [--out DIR] [--terms FILE] [--map FILE]
-  sensitive.py restore FILE  [--out FILE] [--map FILE]
+  sensitive.py restore FILE  [--out FILE] [--map FILE] [--docx]
   sensitive.py scan    [DIR] [--terms FILE]
 
 Layout (env AI_HOME, default ~/ai):
   private/in   originals (never connect this folder to the agent)
   private/map.json   token <-> value map (never share)   private/terms.txt  your own names
   work/masked  masked copies: the only folder the agent gets
+  private/terms.auto.txt  names and organisations found by themselves (review it; add what is missing to terms.txt)
 Output of mask and scan lists types and counts, never the values.
+Automatic detection (pii_auto.py: context rules + local Portuguese NER) is on; AI_AUTO=0 switches it off.
+PDF text is normalised first (normalize.py: ligatures, broken words, headers and footers, paragraphs).
 """
 from __future__ import annotations
 
@@ -29,6 +38,11 @@ HOME = Path(os.environ.get("AI_HOME", Path.home() / "ai"))
 TEXT = {".md", ".txt", ".csv", ".tsv", ".json", ".eml", ".html", ".htm", ".xml"}
 OFFICE = {".docx", ".xlsx", ".pptx", ".pdf"}
 TOKEN = re.compile(r"<([A-Z]+)_(\d+)>")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import normalize  # noqa: E402
+import pii_auto  # noqa: E402
+
+AUTO = os.environ.get("AI_AUTO", "1") != "0"
 
 
 # ---- validators ------------------------------------------------------------
@@ -111,6 +125,8 @@ class Vault:
         self.path = path
         self.tok: dict[str, str] = json.loads(path.read_text("utf-8")) if path.is_file() else {}
         self.rev = {v.casefold(): t for t, v in self.tok.items()}
+        self.auto_path = path.with_name("terms.auto.txt")
+        self.auto: list[tuple[str, str]] = load_terms(self.auto_path)
 
     def token(self, kind: str, value: str) -> str:
         t = self.rev.get(value.casefold())
@@ -123,11 +139,23 @@ class Vault:
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(self.tok, ensure_ascii=False, indent=1), encoding="utf-8")
+        head = "# found automatically; delete a wrong line, add the missing ones to terms.txt\n"
+        self.auto_path.write_text(head + "".join(f"{k}: {v}\n" for k, v in sorted(self.auto, key=lambda t: (t[0], t[1].lower()))), encoding="utf-8")
+
+    def learn(self, found: list[tuple[str, str]]) -> None:
+        have = {v.casefold() for _, v in self.auto}
+        for k, v in found:
+            if v.casefold() not in have:
+                self.auto.append((k, v))
+                have.add(v.casefold())
 
 
 def mask_text(text: str, vault: Vault, terms: list[tuple[str, str]]) -> tuple[str, Counter]:
     count: Counter = Counter()
     out, pos = [], 0
+    if AUTO:
+        vault.learn(pii_auto.detect(text))
+        terms = sorted(terms + [t for t in vault.auto if t not in terms], key=lambda t: -len(t[1]))
     for a, b, kind in find_spans(text, terms):
         out += [text[pos:a], vault.token(kind, text[a:b])]
         count[kind] += 1
@@ -139,9 +167,12 @@ def mask_text(text: str, vault: Vault, terms: list[tuple[str, str]]) -> tuple[st
 def read_text(p: Path) -> str:
     if p.suffix.lower() in TEXT:
         return p.read_text(encoding="utf-8-sig", errors="replace")
-    from markitdown import MarkItDown  # office and pdf
+    if p.suffix.lower() == ".pdf":
+        return normalize.pdf_to_markdown(p)
+    from markitdown import MarkItDown  # office files
 
-    return MarkItDown().convert(str(p)).text_content
+    text = MarkItDown().convert(str(p)).text_content
+    return normalize.clean(text) if p.suffix.lower() in {".docx", ".pptx"} else text
 
 
 # ---- commands --------------------------------------------------------------
@@ -188,13 +219,18 @@ def cmd_restore(a: argparse.Namespace) -> int:
     dest = a.out or HOME / "private" / "restored" / a.file.name  # never next to the shared copy
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(text, encoding="utf-8")
+    if a.docx:  # the summary the person reads: real values back, one clean Word file
+        import pypandoc
+
+        pypandoc.convert_file(str(dest), "docx", outputfile=str(dest.with_suffix(".docx")))
+        print(f"OK Word file -> {dest.with_suffix('.docx')}")
     print(f"OK restored -> {dest}" + (f" ({len(unknown)} unknown tokens left)" if unknown else ""))
     return 0
 
 
 def cmd_scan(a: argparse.Namespace) -> int:
     root = a.dir or HOME / "work"
-    terms = load_terms(a.terms or HOME / "private" / "terms.txt")
+    terms = load_terms(a.terms or HOME / "private" / "terms.txt") + load_terms(HOME / "private" / "terms.auto.txt")
     found = 0
     for f in sorted(p for p in root.rglob("*") if p.is_file()):
         ext = f.suffix.lower()
@@ -203,7 +239,8 @@ def cmd_scan(a: argparse.Namespace) -> int:
             found += 1
         elif ext in TEXT:
             text = f.read_text(encoding="utf-8-sig", errors="replace")
-            n = Counter(k for _, _, k in find_spans(text, terms))
+            extra = [(k, v) for k, v in (pii_auto.detect(text) if AUTO else [])]
+            n = Counter(k for _, _, k in find_spans(text, terms + extra))
             if n:
                 print(f"LEAK  {f.relative_to(root)}: " + ", ".join(f"{k}x{v}" for k, v in sorted(n.items())))
                 found += 1
@@ -217,7 +254,7 @@ def main() -> int:
     m = sub.add_parser("mask"); m.add_argument("src", nargs="?", type=Path); m.add_argument("--out", type=Path)
     m.add_argument("--terms", type=Path); m.add_argument("--map", type=Path); m.set_defaults(fn=cmd_mask)
     r = sub.add_parser("restore"); r.add_argument("file", type=Path); r.add_argument("--out", type=Path)
-    r.add_argument("--map", type=Path); r.set_defaults(fn=cmd_restore)
+    r.add_argument("--map", type=Path); r.add_argument("--docx", action="store_true", help="also write a Word file"); r.set_defaults(fn=cmd_restore)
     s = sub.add_parser("scan"); s.add_argument("dir", nargs="?", type=Path); s.add_argument("--terms", type=Path)
     s.set_defaults(fn=cmd_scan)
     a = ap.parse_args()

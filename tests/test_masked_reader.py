@@ -38,3 +38,19 @@ def test_real_value_is_not_searchable_and_unknown_name_fails():
 def test_no_tool_returns_values():
     assert {"list_documents", "open_document", "read_pages", "read_section", "search_document"} <= set(dir(M))
     assert not any("restore" in n or "unmask" in n for n in dir(M))
+
+
+def test_search_all_ranks_pages_across_documents(tmp_path, monkeypatch):
+    import importlib
+
+    (tmp_path / "private" / "in").mkdir(parents=True)
+    (tmp_path / "private" / "in" / "a.md").write_text("# Supplier Norte\n\nAverage delivery time: 96 hours. Price 4.25. Contact quality@norte.example", encoding="utf-8")
+    (tmp_path / "private" / "in" / "b.md").write_text("# Supplier Sado\n\nAverage delivery time: 48 hours. Price 3.99. The incident was a delay in July.", encoding="utf-8")
+    monkeypatch.setenv("AI_HOME", str(tmp_path))
+    monkeypatch.delenv("MASK_READER_DIR", raising=False)
+    import sys
+    sys.path.insert(0, str(ROOT / "plugins/privacy/mcp"))
+    mr = importlib.reload(importlib.import_module("masked_reader"))
+    out = mr.search_all("delay in July")
+    assert out.index("b.md") < out.index("--- ", 20) or "b.md" in out.splitlines()[1]
+    assert "quality@norte.example" not in mr.search_all("contact norte")

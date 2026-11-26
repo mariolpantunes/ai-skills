@@ -100,7 +100,7 @@ Step "Work folders under $AiHome"
 foreach ($d in 'private\in', 'private\restored', 'work\masked', 'tools', 'hints') {
     New-Item -ItemType Directory -Force -Path (Join-Path $AiHome $d) | Out-Null
 }
-Copy-Item (Join-Path $RepoDir 'plugins\privacy\skills\mask-sensitive\scripts\sensitive.py') (Join-Path $AiHome 'tools') -Force
+Copy-Item (Join-Path $RepoDir 'plugins\privacy\skills\mask-sensitive\scripts\*.py') (Join-Path $AiHome 'tools') -Force
 Copy-Item (Join-Path $RepoDir 'plugins\privacy\mcp\masked_reader.py') (Join-Path $AiHome 'tools') -Force
 Copy-Item (Join-Path $RepoDir 'install\tools\*.cmd') (Join-Path $AiHome 'tools') -Force
 Copy-Item (Join-Path $RepoDir 'hints\*') (Join-Path $AiHome 'hints') -Force
